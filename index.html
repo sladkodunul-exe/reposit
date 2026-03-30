@@ -1,1 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Firebase Form</title>
+</head>
+<body>
 
+<h2>Отправка заявки</h2>
+
+<form id="requestForm">
+    <input type="text" id="name" placeholder="Ваше имя" required><br><br>
+    <input type="email" id="email" placeholder="Ваш email" required><br><br>
+    <button type="submit">Отправить</button>
+</form>
+
+<script type="module">
+    // 1. Импорт модулей Firebase
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    // 2. ВАШИ ключи Firebase (замените на свои)
+    const firebaseConfig = {
+        apiKey: "AIzaSyCNeJLw0sigQpd9tlVhC1Pe0CoSGHNO8SY",
+        authDomain: "edlar-c576b.firebaseapp.com",
+        projectId: "edlar-c576b",
+        storageBucket: "edlar-c576b.firebasestorage.app",
+        messagingSenderId: "443377138108",
+        appId: "1:443377138108:web:c49bd24ca61ac287f513b9"
+    };
+
+    // 3. Инициализация Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 4. Обработка формы
+    const form = document.getElementById("requestForm");
+
+    form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const name = document.getElementById("name").value;
+        const email = document.getElementById("email").value;
+
+        try {
+            await addDoc(collection(db, "requests"), {
+                name: name,
+                email: email,
+                createdAt: new Date()
+            });
+
+            alert("Заявка отправлена!");
+            form.reset();
+        } catch (error) {
+            console.error("Ошибка:", error);
+            alert("Ошибка при отправке");
+        }
+    });
+</script>
+
+</body>
+</html>
