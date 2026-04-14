@@ -14,12 +14,24 @@
     <button type="submit">Отправить</button>
 </form>
 
-<script type="module">
-    // 1. Импорт модулей Firebase
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+<h2>Лента заявок</h2>
+<ul id="list"></ul>
 
-    // 2. ВАШИ ключи Firebase (замените на свои)
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+
+    import {
+        getFirestore,
+        collection,
+        addDoc,
+        onSnapshot,
+        query,
+        orderBy,
+        updateDoc,
+        doc,
+        increment
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
     const firebaseConfig = {
         apiKey: "AIzaSyCNeJLw0sigQpd9tlVhC1Pe0CoSGHNO8SY",
         authDomain: "edlar-c576b.firebaseapp.com",
@@ -29,13 +41,13 @@
         appId: "1:443377138108:web:c49bd24ca61ac287f513b9"
     };
 
-    // 3. Инициализация Firebase
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    // 4. Обработка формы
     const form = document.getElementById("requestForm");
+    const list = document.getElementById("list");
 
+    // ➕ Отправка формы
     form.addEventListener("submit", async (e) => {
         e.preventDefault();
 
@@ -46,15 +58,48 @@
             await addDoc(collection(db, "requests"), {
                 name: name,
                 email: email,
+                likes: 0,
                 createdAt: new Date()
             });
 
-            alert("Заявка отправлена!");
             form.reset();
         } catch (error) {
             console.error("Ошибка:", error);
-            alert("Ошибка при отправке");
         }
+    });
+
+    // 🔴 Живое обновление (onSnapshot + сортировка)
+    const q = query(
+        collection(db, "requests"),
+        orderBy("createdAt", "desc")
+    );
+
+    onSnapshot(q, (snapshot) => {
+        list.innerHTML = "";
+
+        snapshot.forEach((docItem) => {
+            const data = docItem.data();
+
+            const li = document.createElement("li");
+
+            li.innerHTML = `
+                <b>${data.name}</b> (${data.email})<br>
+                👍 ${data.likes || 0}
+                <button data-id="${docItem.id}">Лайк</button>
+                <hr>
+            `;
+
+            // 👍 обработка лайка
+            li.querySelector("button").addEventListener("click", async () => {
+                const ref = doc(db, "requests", docItem.id);
+
+                await updateDoc(ref, {
+                    likes: increment(1)
+                });
+            });
+
+            list.appendChild(li);
+        });
     });
 </script>
 
