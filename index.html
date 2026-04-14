@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -8,7 +8,14 @@
 
 <h2>Отправка заявки</h2>
 
-<form id="requestForm">
+<!-- 🔐 Кнопки авторизации -->
+<button id="loginBtn">Войти</button>
+<button id="logoutBtn" style="display:none;">Выйти</button>
+
+<br><br>
+
+<!-- 📩 Форма -->
+<form id="requestForm" style="display:none;">
     <input type="text" id="name" placeholder="Ваше имя" required><br><br>
     <input type="email" id="email" placeholder="Ваш email" required><br><br>
     <button type="submit">Отправить</button>
@@ -32,6 +39,15 @@
         increment
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
+    // 🔐 Импорт авторизации
+    import {
+        getAuth,
+        signInWithPopup,
+        GoogleAuthProvider,
+        signOut,
+        onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
     const firebaseConfig = {
         apiKey: "AIzaSyCNeJLw0sigQpd9tlVhC1Pe0CoSGHNO8SY",
         authDomain: "edlar-c576b.firebaseapp.com",
@@ -43,9 +59,41 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
 
     const form = document.getElementById("requestForm");
     const list = document.getElementById("list");
+
+    const loginBtn = document.getElementById("loginBtn");
+    const logoutBtn = document.getElementById("logoutBtn");
+
+    // 🔑 Вход
+    loginBtn.addEventListener("click", async () => {
+        try {
+            await signInWithPopup(auth, provider);
+        } catch (error) {
+            console.error("Ошибка входа:", error);
+        }
+    });
+
+    // 🚪 Выход
+    logoutBtn.addEventListener("click", async () => {
+        await signOut(auth);
+    });
+
+    // 👀 Отслеживание состояния пользователя
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            form.style.display = "block";
+            logoutBtn.style.display = "inline";
+            loginBtn.style.display = "none";
+        } else {
+            form.style.display = "none";
+            logoutBtn.style.display = "none";
+            loginBtn.style.display = "inline";
+        }
+    });
 
     // ➕ Отправка формы
     form.addEventListener("submit", async (e) => {
@@ -68,7 +116,7 @@
         }
     });
 
-    // 🔴 Живое обновление (onSnapshot + сортировка)
+    // 🔴 Живое обновление
     const q = query(
         collection(db, "requests"),
         orderBy("createdAt", "desc")
@@ -89,7 +137,6 @@
                 <hr>
             `;
 
-            // 👍 обработка лайка
             li.querySelector("button").addEventListener("click", async () => {
                 const ref = doc(db, "requests", docItem.id);
 
