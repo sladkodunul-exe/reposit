@@ -1,153 +1,129 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <title>Firebase Form</title>
+  <meta charset="UTF-8">
+  <title>Supabase Status App</title>
+  <style>
+    body {
+      font-family: Arial;
+      background: #f3f4f6;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+    }
+
+    .buttons button {
+      padding: 10px;
+      margin: 5px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: white;
+    }
+
+    .green { background: #22c55e; }
+    .yellow { background: #f59e0b; }
+    .blue { background: #3b82f6; }
+    .gray { background: #6b7280; }
+
+    .user {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+  </style>
 </head>
 <body>
 
-<h2>Отправка заявки</h2>
+<div class="card">
+  <h2>Мой профиль</h2>
+  <p id="myInfo">Загрузка...</p>
 
-<!-- 🔐 Кнопки авторизации -->
-<button id="loginBtn">Войти</button>
-<button id="logoutBtn" style="display:none;">Выйти</button>
+  <div class="buttons">
+    <button class="green" onclick="setStatus('Учусь', '#22c55e')">📚 Учусь</button>
+    <button class="yellow" onclick="setStatus('Кофе', '#f59e0b')">☕ Кофе</button>
+    <button class="blue" onclick="setStatus('В игре', '#3b82f6')">🎮 В игре</button>
+    <button class="gray" onclick="setStatus('Дома', '#6b7280')">🏠 Дома</button>
+  </div>
+</div>
 
-<br><br>
-
-<!-- 📩 Форма -->
-<form id="requestForm" style="display:none;">
-    <input type="text" id="name" placeholder="Ваше имя" required><br><br>
-    <input type="email" id="email" placeholder="Ваш email" required><br><br>
-    <button type="submit">Отправить</button>
-</form>
-
-<h2>Лента заявок</h2>
-<ul id="list"></ul>
+<div class="card">
+  <h2>Монитор группы</h2>
+  <div id="list"></div>
+</div>
 
 <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm'
 
-    import {
-        getFirestore,
-        collection,
-        addDoc,
-        onSnapshot,
-        query,
-        orderBy,
-        updateDoc,
-        doc,
-        increment
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+// 🔑 ВСТАВЬ СВОИ ДАННЫЕ
+const URL = 'https://rqslphzwqudnkpbuueem.supabase.co'
+const KEY = 'sb_secret_8xoox6foE7clTI4k1YNcsw_ll3SrwQ1'
 
-    // 🔐 Импорт авторизации
-    import {
-        getAuth,
-        signInWithPopup,
-        GoogleAuthProvider,
-        signOut,
-        onAuthStateChanged
-    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+const supabase = createClient(URL, KEY)
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyCNeJLw0sigQpd9tlVhC1Pe0CoSGHNO8SY",
-        authDomain: "edlar-c576b.firebaseapp.com",
-        projectId: "edlar-c576b",
-        storageBucket: "edlar-c576b.firebasestorage.app",
-        messagingSenderId: "443377138108",
-        appId: "1:443377138108:web:c49bd24ca61ac287f513b9"
-    };
+// ⚠️ ID пользователя (из таблицы profiles)
+const MY_ID = '9f7b4d41-715c-4897-b4ea-56b255bf2934'
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const auth = getAuth(app);
-    const provider = new GoogleAuthProvider();
+// смена статуса
+window.setStatus = async (text, color) => {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ status: text, color: color })
+    .eq('id', MY_ID)
 
-    const form = document.getElementById("requestForm");
-    const list = document.getElementById("list");
+  if (error) {
+    alert('Ошибка! Проверь RLS')
+    console.error(error)
+  } else {
+    loadUsers()
+  }
+}
 
-    const loginBtn = document.getElementById("loginBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
+// загрузка пользователей
+async function loadUsers() {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('username', { ascending: true })
 
-    // 🔑 Вход
-    loginBtn.addEventListener("click", async () => {
-        try {
-            await signInWithPopup(auth, provider);
-        } catch (error) {
-            console.error("Ошибка входа:", error);
-        }
-    });
+  if (error) return console.error(error)
 
-    // 🚪 Выход
-    logoutBtn.addEventListener("click", async () => {
-        await signOut(auth);
-    });
+  const list = document.getElementById('list')
 
-    // 👀 Отслеживание состояния пользователя
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            form.style.display = "block";
-            logoutBtn.style.display = "inline";
-            loginBtn.style.display = "none";
-        } else {
-            form.style.display = "none";
-            logoutBtn.style.display = "none";
-            loginBtn.style.display = "inline";
-        }
-    });
+  list.innerHTML = data.map(user => `
+    <div class="user">
+      <div class="dot" style="background:${user.color || '#ccc'}"></div>
+      <div>
+        <b>${user.username}</b><br>
+        <small>${user.status || 'Статус не задан'}</small>
+      </div>
+    </div>
+  `).join('')
 
-    // ➕ Отправка формы
-    form.addEventListener("submit", async (e) => {
-        e.preventDefault();
+  const me = data.find(u => u.id === MY_ID)
+  if (me) {
+    document.getElementById('myInfo').innerText =
+      `Вы зашли как: ${me.username}`
+  }
+}
 
-        const name = document.getElementById("name").value;
-        const email = document.getElementById("email").value;
+// автообновление
+setInterval(loadUsers, 5000)
 
-        try {
-            await addDoc(collection(db, "requests"), {
-                name: name,
-                email: email,
-                likes: 0,
-                createdAt: new Date()
-            });
-
-            form.reset();
-        } catch (error) {
-            console.error("Ошибка:", error);
-        }
-    });
-
-    // 🔴 Живое обновление
-    const q = query(
-        collection(db, "requests"),
-        orderBy("createdAt", "desc")
-    );
-
-    onSnapshot(q, (snapshot) => {
-        list.innerHTML = "";
-
-        snapshot.forEach((docItem) => {
-            const data = docItem.data();
-
-            const li = document.createElement("li");
-
-            li.innerHTML = `
-                <b>${data.name}</b> (${data.email})<br>
-                👍 ${data.likes || 0}
-                <button data-id="${docItem.id}">Лайк</button>
-                <hr>
-            `;
-
-            li.querySelector("button").addEventListener("click", async () => {
-                const ref = doc(db, "requests", docItem.id);
-
-                await updateDoc(ref, {
-                    likes: increment(1)
-                });
-            });
-
-            list.appendChild(li);
-        });
-    });
+loadUsers()
 </script>
 
 </body>
